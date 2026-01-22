@@ -14,7 +14,7 @@ R language support for [Apache Texera](https://github.com/apache/texera), enabli
 ```r
 # Install tested versions
 install.packages("remotes")
-remotes::install_version("arrow", version = "22.0.0.1")
+remotes::install_version("arrow", version = "14.0.2.1")
 remotes::install_version("coro", version = "1.1.0")
 remotes::install_version("aws.s3", version = "0.3.22")
 ```
@@ -133,7 +133,7 @@ This plugin has been tested and verified to work with the following versions:
 
 **R Environment:**
 - **R**: 4.5.2
-- **arrow**: 22.0.0.1
+- **arrow**: 14.0.2.1
 - **coro**: 1.1.0
 - **aws.s3**: 0.3.22
 
