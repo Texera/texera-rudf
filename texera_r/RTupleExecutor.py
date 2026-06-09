@@ -85,6 +85,12 @@ class RTupleExecutor(TupleOperatorV2):
             "STORAGE_S3_AUTH_PASSWORD": get_config(
                 "S3_AUTH_PASSWORD", "STORAGE_S3_AUTH_PASSWORD", "password"
             ),
+            # Execution-scoped base URI (s3://<bucket>/objects/<executionId>/) handed down by
+            # the controller. New large binaries created by R UDFs must live under it so they
+            # are tracked and cleaned up by execution id (mirrors pytexera's LargeBinaryManager).
+            "STORAGE_S3_LARGE_BINARIES_BASE_URI": get_config(
+                "S3_LARGE_BINARIES_BASE_URI", "STORAGE_S3_LARGE_BINARIES_BASE_URI", ""
+            ),
         }
         os.environ.update(config_map)
 
@@ -136,6 +142,11 @@ class RTupleExecutor(TupleOperatorV2):
 
         largebinary <- function(uri = NULL) {
             if (is.null(uri)) {
+                base_uri <- Sys.getenv("STORAGE_S3_LARGE_BINARIES_BASE_URI", "")
+                if (nchar(base_uri) == 0) {
+                    stop("largebinary() requires a large-binaries base URI, but none is ",
+                         "configured (STORAGE_S3_LARGE_BINARIES_BASE_URI is unset).")
+                }
                 config <- setup_s3_config()
                 args <- c(list(bucket = DEFAULT_BUCKET), s3_call_args(config))
                 
@@ -146,8 +157,9 @@ class RTupleExecutor(TupleOperatorV2):
                     }
                 )
                 
-                uri <- paste0("s3://", DEFAULT_BUCKET, "/objects/", 
-                              sprintf("%.0f", as.numeric(Sys.time()) * 1000), "/", generate_uuid())
+                # base_uri is execution-scoped (s3://<bucket>/objects/<executionId>/, with a
+                # trailing slash), so binaries are tracked and cleaned up by execution id.
+                uri <- paste0(base_uri, generate_uuid())
             } else if (!is.character(uri) || length(uri) != 1 || !grepl("^s3://", uri)) {
                 stop("uri must be a single character string starting with 's3://', got: ", uri)
             }
