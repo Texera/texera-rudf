@@ -47,6 +47,12 @@ def convert_r_to_py(value: rpy2.robjects):
     if isinstance(value, robjects.vectors.IntVector):
         return int(value[0])
     if isinstance(value, robjects.vectors.FloatVector):
+        if "integer64" in value.rclass:
+            # bit64 stores int64 bits inside an R double vector. Reading it as
+            # float loses the integer (and some valid values look like NaN).
+            if robjects.r["is.na"](value)[0]:
+                return None
+            return int(robjects.r["as.character"](value)[0])
         if isinstance(value, robjects.vectors.POSIXct):
             return next(value.iter_localized_datetime())
         else:
