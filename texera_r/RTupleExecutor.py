@@ -27,6 +27,7 @@ import pyarrow as pa
 import rpy2
 import rpy2.robjects as robjects
 import warnings
+from texera_r.ui_parameters import load_user_function
 from rpy2.robjects import default_converter
 from rpy2.robjects.conversion import localconverter as local_converter
 from rpy2_arrow.arrow import converter as arrow_converter
@@ -269,7 +270,7 @@ class RTupleExecutor(TupleOperatorV2):
         RTupleExecutor._setup_r_large_binary_apis()
         # Use the local converter from rpy2 to load in the R function given by the user
         with local_converter(default_converter):
-            self._func = robjects.r(r_code)
+            self._func = load_user_function(r_code)
 
     def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
         """
@@ -392,7 +393,7 @@ class RTupleSourceExecutor(SourceOperator):
         RTupleExecutor._setup_r_large_binary_apis()
         # Use the local converter from rpy2 to load in the R function given by the user
         with local_converter(default_converter):
-            self._func = robjects.r(r_code)
+            self._func = load_user_function(r_code)
 
     def produce(self) -> Iterator[Union[TupleLike, TableLike, None]]:
         """

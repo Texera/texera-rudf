@@ -31,11 +31,14 @@ from texera_r.RTupleExecutor import RTupleExecutor, RTupleSourceExecutor
 from texera_r.RTableExecutor import RTableExecutor, RTableSourceExecutor
 from texera_r.r_utils import convert_r_to_py, extract_tuple_from_r
 
-__version__ = "0.1.0"
+from texera_r.ui_parameters import UI_PARAMETERS_API_VERSION
+
+__version__ = "0.2.0"
 __author__ = "Texera Team"
 __license__ = "MIT"
 
 __all__ = [
+    "UI_PARAMETERS_API_VERSION",
     "RTupleExecutor",
     "RTupleSourceExecutor",
     "RTableExecutor",
