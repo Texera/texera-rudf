@@ -28,14 +28,15 @@ from rpy2.rinterface_lib.embedded import RRuntimeError
 from texera_r.ui_parameters import load_user_function, UI_PARAMETERS_HEADER
 
 
-def script(value, name="count"):
+def script(value, name="count", kind="integer"):
+    token = "INT" if kind == "integer" else kind.upper()
     return (
         UI_PARAMETERS_HEADER
         + f'''texera_ui_parameters({{
-      count <- UiParameter("{name}", AttributeType$INT)$value
+      count <- UiParameter("{name}", AttributeType${token})$value
       function() count
-    }}, parameters=list(count=list(type="integer", value="{value}", inputType="")),
-    attribute_types=list(INT="integer"), resources=list())'''
+    }}, parameters=list(count=list(type="{kind}", value="{value}", inputType="")),
+    attribute_types=list({token}="{kind}"), resources=list())'''
     )
 
 
@@ -63,3 +64,62 @@ def test_missing_parameters_report_the_name():
 def test_unknown_sdk_versions_are_rejected_explicitly():
     with pytest.raises(ValueError, match="Unsupported Texera UI parameter SDK version"):
         load_user_function("# Texera UI parameters: SDK v2\nfunction() 1")
+
+
+@pytest.mark.parametrize(
+    "raw,expected",
+    [
+        ("9223372036854775807", "9223372036854775807"),
+        ("+0009223372036854775807", "9223372036854775807"),
+        ("-0009223372036854775807", "-9223372036854775807"),
+        ("0", "0"),
+        ("+000", "0"),
+        ("-000", "0"),
+    ],
+)
+def test_long_values_preserve_exact_boundaries_and_normalize_padding(raw, expected):
+    value = load_user_function(script(raw, kind="long"))()
+    assert "integer64" in value.rclass
+    assert str(r.r["as.character"](value)[0]) == expected
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        "9223372036854775808",
+        "99999999999999999999",
+        "+0009223372036854775808",
+        "-9223372036854775808",  # bit64 reserves INT64_MIN for NA.
+        "-9223372036854775809",
+        "-99999999999999999999",
+    ],
+)
+def test_long_overflow_and_reserved_na_are_rejected(raw):
+    with pytest.raises(
+        RRuntimeError, match="Invalid long value for UiParameter 'count'"
+    ):
+        load_user_function(script(raw, kind="long"))()
+
+
+def test_long_overflow_is_rejected_when_bit64_saturates():
+    from texera_r.ui_parameters import _loader
+
+    saturate = r.r("""function(loader, code) {
+      namespace <- asNamespace("bit64")
+      original <- get("as.integer64", envir=namespace)
+      replace <- function(converter) {
+        unlockBinding("as.integer64", namespace)
+        assign("as.integer64", converter, envir=namespace)
+        lockBinding("as.integer64", namespace)
+      }
+      on.exit(replace(original))
+      replace(function(x, ...) {
+        original(if (x == "9223372036854775808") "9223372036854775807" else x, ...)
+      })
+      stopifnot(as.character(bit64::as.integer64("9223372036854775808")) == "9223372036854775807")
+      loader(code)()
+    }""")
+    with pytest.raises(
+        RRuntimeError, match="Invalid long value for UiParameter 'count'"
+    ):
+        saturate(_loader(), script("9223372036854775808", kind="long"))

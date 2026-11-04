@@ -48,6 +48,8 @@ function(table, port) {
 
 The SDK supports string, integer, long, double, boolean, and timestamp values, plus string parameters naming a model or dataset version. Long values require the R package `bit64`; the minimum signed 64-bit value is reserved for `NA` and cannot be a parameter value. Boolean text follows the Python SDK: true/false or numeric text, with nonzero interpreted as true.
 
+Long values outside the supported range are rejected, including when `bit64` would clamp them. Hexadecimal text is rejected for double and boolean parameters. Timestamps accept `YYYY-MM-DD` alone or with hour, minute, or second precision, optionally followed by `Z` or a numeric timezone offset such as `+02:00`.
+
 Texera supplies the metadata and supported type/resource mappings. The plugin owns native R conversion and evaluates every parameterized script in its own environment. Existing scripts without parameters retain their execution path. The SDK's R source is packaged with the Python wheel; callers do not need to source an extra file.
 
 ### Tuple API (Row-by-Row Processing)

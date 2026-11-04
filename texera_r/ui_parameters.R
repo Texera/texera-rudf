@@ -37,6 +37,7 @@ function(code) {
       if (type == "string") return(raw)
       text <- trimws(raw)
       if (!nzchar(text)) invalid()
+      if (type %in% c("boolean", "double") && grepl("^[+-]?0[xX]", text)) invalid()
       if (type == "boolean") {
         if (tolower(text) == "true") return(TRUE)
         if (tolower(text) == "false") return(FALSE)
@@ -50,7 +51,11 @@ function(code) {
           if (!requireNamespace("bit64", quietly=TRUE))
             stop("LONG UiParameters require the R package 'bit64'.", call.=FALSE)
           result <- suppressWarnings(bit64::as.integer64(text))
-          if (is.na(result)) invalid()
+          digits <- sub("^[+-]?0*", "", text)
+          canonical <- if (!nzchar(digits)) "0" else
+            paste0(if (startsWith(text, "-")) "-" else "", digits)
+          # Some bit64 implementations clamp overflow; verify the exact decimal value.
+          if (is.na(result) || as.character(result) != canonical) invalid()
           return(result)
         }
         result <- suppressWarnings(as.numeric(text))
@@ -65,7 +70,10 @@ function(code) {
       }
       if (type == "timestamp") {
         if (grepl("^[0-9]{4}-[0-9]{2}-[0-9]{2}$", text)) text <- paste0(text, "T00:00:00")
-        if (!grepl("^[0-9]{4}-[0-9]{2}-[0-9]{2}[T ][0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?(Z|[+-][0-9]{2}:?[0-9]{2})?$", text)) invalid()
+        zone <- "(Z|[+-][0-9]{2}:?[0-9]{2})?"
+        text <- sub(paste0("([T ][0-9]{2})", zone, "$"), "\\1:00:00\\2", text)
+        text <- sub(paste0("([T ][0-9]{2}:[0-9]{2})", zone, "$"), "\\1:00\\2", text)
+        if (!grepl("^[0-9]{4}-[0-9]{2}-[0-9]{2}[T ]([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9](\\.[0-9]+)?(Z|[+-][0-9]{2}:?[0-9]{2})?$", text)) invalid()
         text <- sub(" ", "T", text, fixed=TRUE)
         text <- sub("Z$", "+0000", text)
         text <- sub("([+-][0-9]{2}):([0-9]{2})$", "\\1\\2", text)
